@@ -12,6 +12,9 @@ import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Cluster } from 'aws-cdk-lib/aws-ecs';
 import { getWebService } from './primitives/services/web';
 import { getServerService } from './primitives/services/server';
+import { getFileImportService } from './primitives/services/file-import-service';
+import { getPreviewService } from './primitives/services/preview-service';
+import { getWebhookService } from './primitives/services/webhook-service';
 
 
 export class SpeckleStack extends cdk.Stack {
@@ -67,6 +70,9 @@ export class SpeckleStack extends cdk.Stack {
     //add the services
     getWebService(this, props.web)
     getServerService(this, props.server)
+    getFileImportService(this, props.fileImport)
+    getPreviewService(this, props.preview)
+    getWebhookService(this, props.webhook)
 
     //profit?
 

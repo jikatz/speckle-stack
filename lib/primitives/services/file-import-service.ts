@@ -1,6 +1,5 @@
-import { Port, SecurityGroup, SubnetType } from "aws-cdk-lib/aws-ec2"
-import { ContainerImage, Secret } from "aws-cdk-lib/aws-ecs"
-import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns"
+import { Port, SecurityGroup } from "aws-cdk-lib/aws-ec2"
+import { Compatibility, ContainerImage, FargateService, LogDriver, TaskDefinition } from "aws-cdk-lib/aws-ecs"
 import { SpeckleComputeProps } from "../../props"
 import { SpeckleStack } from "../../speckle-stack"
 
@@ -10,47 +9,47 @@ export const getFileImportService = (stack: SpeckleStack, compute?: SpeckleCompu
     const imageTag = compute?.tagOverride ?? 'latest'
     const image = ContainerImage.fromRegistry(`${repoName}:${imageTag}`)
 
-    const fileImportService = new ApplicationLoadBalancedFargateService(stack, `speckle-import-service-${stack.namespace}`, {
-        memoryLimitMiB: compute?.memoryLimitMiB || 4096,
-        desiredCount: compute?.desiredCount || 1,
-        publicLoadBalancer: false,
-        cpu: compute?.cpu || 2048,
-        taskImageOptions: {
-            image,
-            containerName: "file-import-service",
-            environment: {
-                SPECKLE_SERVER_URL: `https://${stack.apiUrl}:3000`,
-                LOG_LEVEL: "info",
-                POSTGRES_URL: `${stack.dbCluster.clusterEndpoint.hostname}`,
-                POSTGRES_USER: "postgres",
-                POSTGRES_DB: "speckle",
-                FILE_IMPORT_TIME_LIMIT_MIN: "10",
-            },
-            secrets: {
-                POSTGRES_PASSWORD: Secret.fromSecretsManager(stack.secret, "password"),
-            },
+    const logDriver = LogDriver.awsLogs({streamPrefix: `speckle-import-${stack.namespace}`})
+
+
+    const taskDefinition = new TaskDefinition(stack, `file-import-task-${stack.namespace}`, {
+        memoryMiB: `${compute?.memoryLimitMiB || 512}`,
+        cpu: `${compute?.cpu || 256}`,
+        compatibility:Compatibility.FARGATE,
+        
+    })
+
+    const containerDefinition = taskDefinition.addContainer( `speckle-${stack.namespace}`, {
+        image,
+        memoryLimitMiB:  compute?.memoryLimitMiB || 1024,
+        logging: logDriver,
+        cpu: compute?.cpu || 512,
+        environment: {
+            LOG_LEVEL: 'info',
+            PG_CONNECTION_STRING: 'postgres://speckle:speckle@postgres/speckle',
+            SPECKLE_SERVER_URL: 'http://speckle-server:3000',
+            FILE_IMPORT_TIME_LIMIT_MIN: '10'
         },
-        vpc: stack.vpc,
-        taskSubnets: {
-            subnetType: SubnetType.PRIVATE_WITH_EGRESS
-        }
     });
+
+    const fileImportService = new FargateService(stack, `file-import-service-${stack.namespace}`, {
+        taskDefinition,
+        assignPublicIp: false,
+        cluster: stack.computeCluster,
+    })
+
 
     stack.dbCluster.grantConnect(fileImportService.taskDefinition.taskRole, 'postgres')
-    fileImportService.service.connections.allowFrom(stack.dbCluster, Port.tcp(5432))
-    fileImportService.service.connections.allowTo(stack.dbCluster, Port.tcp(5432))
-    stack.dbCluster.connections.allowDefaultPortFrom(fileImportService.service)
+    fileImportService.connections.allowFrom(stack.dbCluster, Port.tcp(5432))
+    fileImportService.connections.allowTo(stack.dbCluster, Port.tcp(5432))
+    stack.dbCluster.connections.allowDefaultPortFrom(fileImportService)
 
     const vpcDefaultSecurityGroup = SecurityGroup.fromSecurityGroupId(stack, `vpc-default-security-group-${stack.namespace}`, stack.vpc.vpcDefaultSecurityGroup)
-    vpcDefaultSecurityGroup.addIngressRule(fileImportService.service.connections.securityGroups[0], Port.tcp(6379))
-    vpcDefaultSecurityGroup.addEgressRule(fileImportService.service.connections.securityGroups[0], Port.tcp(6379))
+    vpcDefaultSecurityGroup.addIngressRule(fileImportService.connections.securityGroups[0], Port.tcp(6379))
+    vpcDefaultSecurityGroup.addEgressRule(fileImportService.connections.securityGroups[0], Port.tcp(6379))
 
-    fileImportService.targetGroup.configureHealthCheck({
-        path: '/readiness',
-        port: '3000',
-    });
 
-    const scalableTarget = fileImportService.service.autoScaleTaskCount({
+    const scalableTarget = fileImportService.autoScaleTaskCount({
         minCapacity: compute?.minCapacity || 1,
         maxCapacity: compute?.maxCapacity || 2,
     });

@@ -37,6 +37,6 @@ export interface SpeckleStackProps extends StackProps {
     server?: SpeckleComputeProps,
     fileImport?: SpeckleComputeProps,
     preview?: SpeckleComputeProps,
-    weboook?: SpeckleComputeProps,
+    webhook?: SpeckleComputeProps,
     cache?: SpeckleCacheProps
 }
