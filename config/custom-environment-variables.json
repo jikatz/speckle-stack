@@ -1,0 +1,6 @@
+{
+    "cdk": {
+        "ENVIRONMENT": "NAMESPACE",
+        "namespace": "NAMESPACE"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "cdk":{
+        "stackName": "Speckle CDK Stack",
+        "description":"Speckle CDK Stack",
+        "stackTags": {
+            "project": "Speckle",
+            "owner": "Speckle"
+        },
+        "env": {
+            "account": "123456789012",
+            "region": "us-east-1"
+        }
+    },
+    "speckle":{
+        "secretArn": "",
+        "hostedZoneId": "",
+        "domainName": "",
+        "vpcId": ""
+    }
+}
