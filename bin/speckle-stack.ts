@@ -5,8 +5,10 @@ import { SpeckleStack } from '../lib/speckle-stack';
 import config = require('config');
 
 const cdkProps = config.get<cdk.StackProps>('cdk');
-const {hostedZoneId, vpcId, domainName, secretArn} = config.get<Record<string, string>>('speckle');
 const namespace = config.get<string>('namespace');
+const { hostedZoneId, vpcId, domainName, secretArn} = config.get<Record<string, string>>('speckle');
+
+console.log("Namespace:", namespace)
 
 const app = new cdk.App();
 new SpeckleStack(app, `SpeckleStack-${namespace}`, {

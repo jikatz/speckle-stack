@@ -5,10 +5,12 @@
     "speckle-stack": "bin/speckle-stack.js"
   },
   "scripts": {
+    "clean": "rimraf cdk.out coverage",
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "deploy:dev": "npm run clean && NAMESPACE=dev cdk deploy -v --app \"npx ts-node bin/speckle-stack.ts\" -e --require-approval never"
   },
   "devDependencies": {
     "@types/config": "^3.3.5",
@@ -20,6 +22,8 @@
     "vitest": "^3.0.6"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.525.0",
+    "@types/aws-lambda": "^8.10.135",
     "aws-cdk-lib": "2.154.1",
     "config": "^3.3.12",
     "constructs": "^10.0.0",

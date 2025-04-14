@@ -1,6 +1,6 @@
 {
     "cdk":{
-        "stackName": "Speckle CDK Stack",
+        "stackName": "SpeckleCDKStack",
         "description":"Speckle CDK Stack",
         "stackTags": {
             "project": "Speckle",

@@ -1,5 +1,5 @@
 import { Port, SecurityGroup } from "aws-cdk-lib/aws-ec2"
-import { Compatibility, ContainerImage, FargateService, LogDriver, TaskDefinition } from "aws-cdk-lib/aws-ecs"
+import { Compatibility, ContainerImage, FargateService, LogDriver, Secret, TaskDefinition } from "aws-cdk-lib/aws-ecs"
 import { SpeckleComputeProps } from "../../props"
 import { SpeckleStack } from "../../speckle-stack"
 
@@ -13,11 +13,13 @@ export const getFileImportService = (stack: SpeckleStack, compute?: SpeckleCompu
 
 
     const taskDefinition = new TaskDefinition(stack, `file-import-task-${stack.namespace}`, {
-        memoryMiB: `${compute?.memoryLimitMiB || 512}`,
-        cpu: `${compute?.cpu || 256}`,
+        memoryMiB: `${compute?.memoryLimitMiB || 1024}`,
+        cpu: `${compute?.cpu || 512}`,
         compatibility:Compatibility.FARGATE,
         
     })
+
+    //need to add a secret for the db password in the connection string
 
     const containerDefinition = taskDefinition.addContainer( `speckle-${stack.namespace}`, {
         image,
@@ -26,10 +28,13 @@ export const getFileImportService = (stack: SpeckleStack, compute?: SpeckleCompu
         cpu: compute?.cpu || 512,
         environment: {
             LOG_LEVEL: 'info',
-            PG_CONNECTION_STRING: 'postgres://speckle:speckle@postgres/speckle',
-            SPECKLE_SERVER_URL: 'http://speckle-server:3000',
+            SPECKLE_SERVER_URL: `https://${stack.apiUrl}:3000`,
+            REDIS_URL: `redis://${stack.cacheCluster.attrRedisEndpointAddress}:${stack.cacheCluster.attrRedisEndpointPort}`,
             FILE_IMPORT_TIME_LIMIT_MIN: '10'
         },
+        secrets: {
+            PG_CONNECTION_STRING: Secret.fromSecretsManager(stack.secret, 'db-connection-string')
+        }
     });
 
     const fileImportService = new FargateService(stack, `file-import-service-${stack.namespace}`, {
@@ -44,9 +49,9 @@ export const getFileImportService = (stack: SpeckleStack, compute?: SpeckleCompu
     fileImportService.connections.allowTo(stack.dbCluster, Port.tcp(5432))
     stack.dbCluster.connections.allowDefaultPortFrom(fileImportService)
 
-    const vpcDefaultSecurityGroup = SecurityGroup.fromSecurityGroupId(stack, `vpc-default-security-group-${stack.namespace}`, stack.vpc.vpcDefaultSecurityGroup)
-    vpcDefaultSecurityGroup.addIngressRule(fileImportService.connections.securityGroups[0], Port.tcp(6379))
-    vpcDefaultSecurityGroup.addEgressRule(fileImportService.connections.securityGroups[0], Port.tcp(6379))
+    stack.cacheSecurityGroup.addIngressRule(fileImportService.connections.securityGroups[0], Port.tcp(6379))
+    stack.cacheSecurityGroup.addEgressRule(fileImportService.connections.securityGroups[0], Port.tcp(6379))
+    fileImportService.connections.allowFrom(stack.cacheSecurityGroup, Port.tcp(6379))
 
 
     const scalableTarget = fileImportService.autoScaleTaskCount({

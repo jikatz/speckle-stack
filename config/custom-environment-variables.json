@@ -1,6 +1,6 @@
 {
+    "namespace": "NAMESPACE",
     "cdk": {
         "ENVIRONMENT": "NAMESPACE",
-        "namespace": "NAMESPACE"
     }
 }

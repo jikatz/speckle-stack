@@ -14,6 +14,7 @@ export const getWebService = (stack: SpeckleStack, compute?: SpeckleComputeProps
     const webService = new ApplicationLoadBalancedFargateService(stack, `speckle-frontend-service-${stack.namespace}`, {
         memoryLimitMiB: compute?.memoryLimitMiB || 4096,
         desiredCount: compute?.desiredCount || 1,
+        cluster: stack.computeCluster,  
         publicLoadBalancer: true,
         cpu: compute?.cpu || 2048,
         taskImageOptions: {
@@ -39,9 +40,10 @@ export const getWebService = (stack: SpeckleStack, compute?: SpeckleComputeProps
         }
     });
 
-    const vpcDefaultSecurityGroup = SecurityGroup.fromSecurityGroupId(stack, `vpc-default-security-group-${stack.namespace}`, stack.vpc.vpcDefaultSecurityGroup)
-    vpcDefaultSecurityGroup.addIngressRule(webService.service.connections.securityGroups[0], Port.tcp(6379))
-    vpcDefaultSecurityGroup.addEgressRule(webService.service.connections.securityGroups[0], Port.tcp(6379))
+    stack.cacheSecurityGroup.addIngressRule(webService.service.connections.securityGroups[0], Port.tcp(6379))
+    stack.cacheSecurityGroup.addEgressRule(webService.service.connections.securityGroups[0], Port.tcp(6379))
+
+    webService.service.connections.allowFrom(stack.cacheSecurityGroup, Port.tcp(6379))
 
     webService.targetGroup.configureHealthCheck({
         path: '/health',

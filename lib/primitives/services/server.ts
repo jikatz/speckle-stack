@@ -21,11 +21,12 @@ export const getServerService = (stack: SpeckleStack, compute?: SpeckleComputePr
         secretStringValue: accessKey.secretAccessKey,
     });
 
-    const serverService = new ApplicationLoadBalancedFargateService(stack, `speckle-server-cluster-${stack.namespace}`, {
+    const serverService = new ApplicationLoadBalancedFargateService(stack, `speckle-server-service-${stack.namespace}`, {
         memoryLimitMiB: compute?.memoryLimitMiB || 4096,
         desiredCount: compute?.desiredCount || 1,
         publicLoadBalancer: true,
         cpu: compute?.cpu || 2048,
+        cluster: stack.computeCluster,  
         taskImageOptions: {
             image,
             containerPort: 3000,
@@ -77,9 +78,9 @@ export const getServerService = (stack: SpeckleStack, compute?: SpeckleComputePr
     serverService.service.connections.allowTo(stack.dbCluster, Port.tcp(5432))
     stack.dbCluster.connections.allowDefaultPortFrom(serverService.service)
 
-    const vpcDefaultSecurityGroup = SecurityGroup.fromSecurityGroupId(stack, `vpc-default-security-group-${stack.namespace}`, stack.vpc.vpcDefaultSecurityGroup)
-    vpcDefaultSecurityGroup.addIngressRule(serverService.service.connections.securityGroups[0], Port.tcp(6379))
-    vpcDefaultSecurityGroup.addEgressRule(serverService.service.connections.securityGroups[0], Port.tcp(6379))
+    stack.cacheSecurityGroup.addIngressRule(serverService.service.connections.securityGroups[0], Port.tcp(6379))
+    stack.cacheSecurityGroup.addEgressRule(serverService.service.connections.securityGroups[0], Port.tcp(6379))
+    serverService.service.connections.allowFrom(stack.cacheSecurityGroup, Port.tcp(6379))
 
     serverService.targetGroup.configureHealthCheck({
         path: '/readiness',

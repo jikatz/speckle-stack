@@ -1,5 +1,5 @@
 import { Port, SecurityGroup } from "aws-cdk-lib/aws-ec2"
-import { Compatibility, ContainerImage, FargateService, LogDriver, TaskDefinition } from "aws-cdk-lib/aws-ecs"
+import { Compatibility, ContainerImage, FargateService, LogDriver, Secret, TaskDefinition } from "aws-cdk-lib/aws-ecs"
 import { SpeckleComputeProps } from "../../props"
 import { SpeckleStack } from "../../speckle-stack"
 
@@ -13,8 +13,8 @@ export const getPreviewService = (stack: SpeckleStack, compute?: SpeckleComputeP
 
 
     const taskDefinition = new TaskDefinition(stack, `preview-task-${stack.namespace}`, {
-        memoryMiB: `${compute?.memoryLimitMiB || 512}`,
-        cpu: `${compute?.cpu || 256}`,
+        memoryMiB: `${compute?.memoryLimitMiB || 1024}`,
+        cpu: `${compute?.cpu || 512}`,
         compatibility: Compatibility.FARGATE,
 
     })
@@ -28,8 +28,11 @@ export const getPreviewService = (stack: SpeckleStack, compute?: SpeckleComputeP
             HOST: '127.0.0.1',
             METRICS_HOST: '127.0.0.1',
             LOG_LEVEL: 'info',
-            PG_CONNECTION_STRING: 'postgres://speckle:speckle@postgres/speckle'
+            REDIS_URL: `redis://${stack.cacheCluster.attrRedisEndpointAddress}:${stack.cacheCluster.attrRedisEndpointPort}`,
         },
+        secrets: {
+            PG_CONNECTION_STRING: Secret.fromSecretsManager(stack.secret, 'db-connection-string')
+        }
     });
 
     const previewService = new FargateService(stack, `speckle-preview-service-${stack.namespace}`, {
@@ -44,10 +47,9 @@ export const getPreviewService = (stack: SpeckleStack, compute?: SpeckleComputeP
     previewService.connections.allowTo(stack.dbCluster, Port.tcp(5432))
     stack.dbCluster.connections.allowDefaultPortFrom(previewService)
 
-    const vpcDefaultSecurityGroup = SecurityGroup.fromSecurityGroupId(stack, `vpc-default-security-group-${stack.namespace}`, stack.vpc.vpcDefaultSecurityGroup)
-    vpcDefaultSecurityGroup.addIngressRule(previewService.connections.securityGroups[0], Port.tcp(6379))
-    vpcDefaultSecurityGroup.addEgressRule(previewService.connections.securityGroups[0], Port.tcp(6379))
-
+    stack.cacheSecurityGroup.addIngressRule(previewService.connections.securityGroups[0], Port.tcp(6379))
+    stack.cacheSecurityGroup.addEgressRule(previewService.connections.securityGroups[0], Port.tcp(6379))
+    previewService.connections.allowFrom(stack.cacheSecurityGroup, Port.tcp(6379))
 
     const scalableTarget = previewService.autoScaleTaskCount({
         minCapacity: compute?.minCapacity || 1,

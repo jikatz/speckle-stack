@@ -1,0 +1,14 @@
+{
+    "cdk":{
+       "env": {
+            "account": "332412604876",
+            "region": "us-east-1"
+        }
+    },
+    "speckle":{
+        "secretArn": "arn:aws:secretsmanager:us-east-1:332412604876:secret:speckle-dev-hEivQ9",
+        "hostedZoneId": "Z07644613HOPMX2ORK7WS",
+        "domainName": "dev.kindautomatic.com",
+        "vpcId": "vpc-063f9c993ad8e215b"
+    }
+}

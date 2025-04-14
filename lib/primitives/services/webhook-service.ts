@@ -1,5 +1,5 @@
 import { Port, SecurityGroup } from "aws-cdk-lib/aws-ec2"
-import { Compatibility, ContainerImage, FargateService, LogDriver, TaskDefinition } from "aws-cdk-lib/aws-ecs"
+import { Compatibility, ContainerImage, FargateService, LogDriver, Secret, TaskDefinition } from "aws-cdk-lib/aws-ecs"
 import { SpeckleComputeProps } from "../../props"
 import { SpeckleStack } from "../../speckle-stack"
 
@@ -13,8 +13,8 @@ export const getWebhookService = (stack: SpeckleStack, compute?: SpeckleComputeP
 
 
     const taskDefinition = new TaskDefinition(stack, `webhook-task-${stack.namespace}`, {
-        memoryMiB: `${compute?.memoryLimitMiB || 512}`,
-        cpu: `${compute?.cpu || 256}`,
+        memoryMiB: `${compute?.memoryLimitMiB || 1024}`,
+        cpu: `${compute?.cpu || 512}`,
         compatibility: Compatibility.FARGATE,
 
     })
@@ -26,8 +26,11 @@ export const getWebhookService = (stack: SpeckleStack, compute?: SpeckleComputeP
         cpu: compute?.cpu || 512,
         environment: {
             LOG_LEVEL: 'info',
-            PG_CONNECTION_STRING: 'postgres://speckle:speckle@postgres/speckle'
+            REDIS_URL: `redis://${stack.cacheCluster.attrRedisEndpointAddress}:${stack.cacheCluster.attrRedisEndpointPort}`,
         },
+        secrets: {
+            PG_CONNECTION_STRING: Secret.fromSecretsManager(stack.secret, 'db-connection-string')
+        }
     });
 
     const webhookService = new FargateService(stack, `speckle-webhook-service-${stack.namespace}`, {
@@ -42,9 +45,9 @@ export const getWebhookService = (stack: SpeckleStack, compute?: SpeckleComputeP
     webhookService.connections.allowTo(stack.dbCluster, Port.tcp(5432))
     stack.dbCluster.connections.allowDefaultPortFrom(webhookService)
 
-    const vpcDefaultSecurityGroup = SecurityGroup.fromSecurityGroupId(stack, `vpc-default-security-group-${stack.namespace}`, stack.vpc.vpcDefaultSecurityGroup)
-    vpcDefaultSecurityGroup.addIngressRule(webhookService.connections.securityGroups[0], Port.tcp(6379))
-    vpcDefaultSecurityGroup.addEgressRule(webhookService.connections.securityGroups[0], Port.tcp(6379))
+    stack.cacheSecurityGroup.addIngressRule(webhookService.connections.securityGroups[0], Port.tcp(6379))
+    stack.cacheSecurityGroup.addEgressRule(webhookService.connections.securityGroups[0], Port.tcp(6379))
+    webhookService.connections.allowFrom(stack.cacheSecurityGroup, Port.tcp(6379))
 
 
     const scalableTarget = webhookService.autoScaleTaskCount({

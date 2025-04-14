@@ -1,5 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
-import { Vpc } from 'aws-cdk-lib/aws-ec2';
+import { Port, SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
 import { CfnCacheCluster } from 'aws-cdk-lib/aws-elasticache';
 import { DatabaseCluster } from 'aws-cdk-lib/aws-rds';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
@@ -23,6 +23,7 @@ export class SpeckleStack extends cdk.Stack {
   hostedZone: HostedZone;
   dbCluster: DatabaseCluster;
   cacheCluster: CfnCacheCluster;
+  cacheSecurityGroup: SecurityGroup;
   computeCluster: Cluster;
   secret: Secret;
   bucket: Bucket;
@@ -48,7 +49,8 @@ export class SpeckleStack extends cdk.Stack {
       secretCompleteArn: props.secretArn
     }) as Secret;
 
-    this.webUrl = `${props}.${props.domainName}`;
+    this.webUrl = `speckle.${props.domainName}`;
+    this.apiUrl = `speckle-api.${props.domainName}`
 
     this.bucket = new Bucket(this, `speckle-bucket-${this.namespace}`, {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -59,14 +61,18 @@ export class SpeckleStack extends cdk.Stack {
     this.dbCluster = getDb(this, props.db);
     
     //create the cache
-    this.cacheCluster = getCache(this, props.cache);
+    const {cache, securityGroup} = getCache(this, props.cache);
+    this.cacheCluster = cache;
+    this.cacheSecurityGroup = securityGroup;
 
     //setup the compute cluster
     this.computeCluster = new Cluster(this, `speckle-cluster-${props.namespace}`, {
       vpc: this.vpc,
       clusterName: `speckle-cluster-${this.namespace}`,
     });
-    
+
+    this.computeCluster.connections.allowFrom(this.cacheSecurityGroup, Port.tcp(6379));
+      
     //add the services
     getWebService(this, props.web)
     getServerService(this, props.server)

@@ -2,12 +2,13 @@ import { SubnetType } from "aws-cdk-lib/aws-ec2";
 import { AuroraPostgresEngineVersion, ClusterInstance, DatabaseCluster, DatabaseClusterEngine } from "aws-cdk-lib/aws-rds";
 import { SpeckleDbProps } from "../props";
 import { SpeckleStack } from "../speckle-stack";
+import { createDbConnectionString } from "./db-connection-string";
 
 export const getDb = (stack:SpeckleStack, dbProps?: SpeckleDbProps): DatabaseCluster => {
 
     const namespace = stack.namespace;
 
-    return new DatabaseCluster(stack, `speckle-db-${namespace}`, {
+    const dbCluster = new DatabaseCluster(stack, `speckle-db-${namespace}`, {
         engine: DatabaseClusterEngine.auroraPostgres({
             version: AuroraPostgresEngineVersion.VER_16_1
         }),
@@ -21,8 +22,12 @@ export const getDb = (stack:SpeckleStack, dbProps?: SpeckleDbProps): DatabaseClu
         },
         vpc: stack.vpc,
         vpcSubnets: {
-            subnetType: SubnetType.PRIVATE_ISOLATED
+            subnetType: SubnetType.PRIVATE_WITH_NAT
         }
     });
 
+    // Create the connection string in the secret
+    createDbConnectionString(stack, dbCluster);
+
+    return dbCluster;
 }
