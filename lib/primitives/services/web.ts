@@ -23,8 +23,8 @@ export const getWebService = (stack: SpeckleStack, compute?: SpeckleComputeProps
             containerName: "speckle-frontend",
             environment: {
                 NUXT_PUBLIC_SERVER_NAME: `speckle-${stack.namespace}`,
-                NUXT_PUBLIC_API_ORIGIN: `https://${stack.webUrl}`,
-                NUXT_PUBLIC_BACKEND_API_ORIGIN: `https://${stack.apiUrl}:3000`,
+                NUXT_PUBLIC_API_ORIGIN: `https://${stack.apiUrl}`,
+                NUXT_PUBLIC_BACKEND_API_ORIGIN: `https://${stack.apiUrl}`,
                 NUXT_PUBLIC_BASE_URL: `https://${stack.webUrl}`,
                 NUXT_PUBLIC_LOG_LEVEL: 'warn',
                 NUXT_REDIS_URL: `redis://${stack.cacheCluster.attrRedisEndpointAddress}:${stack.cacheCluster.attrRedisEndpointPort}`
@@ -34,11 +34,11 @@ export const getWebService = (stack: SpeckleStack, compute?: SpeckleComputeProps
         domainZone: stack.hostedZone,
         protocol: ApplicationProtocol.HTTPS,
         listenerPort: 443,
-        vpc: stack.vpc,
         taskSubnets: {
             subnetType: SubnetType.PRIVATE_WITH_EGRESS
         }
     });
+
 
     stack.cacheSecurityGroup.addIngressRule(webService.service.connections.securityGroups[0], Port.tcp(6379))
     stack.cacheSecurityGroup.addEgressRule(webService.service.connections.securityGroups[0], Port.tcp(6379))

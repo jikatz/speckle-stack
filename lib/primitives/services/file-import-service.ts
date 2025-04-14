@@ -28,7 +28,7 @@ export const getFileImportService = (stack: SpeckleStack, compute?: SpeckleCompu
         cpu: compute?.cpu || 512,
         environment: {
             LOG_LEVEL: 'info',
-            SPECKLE_SERVER_URL: `https://${stack.apiUrl}:3000`,
+            SPECKLE_SERVER_URL: `https://${stack.apiUrl}`,
             REDIS_URL: `redis://${stack.cacheCluster.attrRedisEndpointAddress}:${stack.cacheCluster.attrRedisEndpointPort}`,
             FILE_IMPORT_TIME_LIMIT_MIN: '10'
         },
@@ -37,12 +37,12 @@ export const getFileImportService = (stack: SpeckleStack, compute?: SpeckleCompu
         }
     });
 
+
     const fileImportService = new FargateService(stack, `file-import-service-${stack.namespace}`, {
         taskDefinition,
         assignPublicIp: false,
         cluster: stack.computeCluster,
     })
-
 
     stack.dbCluster.grantConnect(fileImportService.taskDefinition.taskRole, 'postgres')
     fileImportService.connections.allowFrom(stack.dbCluster, Port.tcp(5432))

@@ -32,7 +32,7 @@ export const getServerService = (stack: SpeckleStack, compute?: SpeckleComputePr
             containerPort: 3000,
             containerName: "speckle-server",
             environment: {
-                CANONICAL_URL: `https://${stack.webUrl}:3000`,
+                CANONICAL_URL: `https://${stack.webUrl}`,
                 STRATEGY_LOCAL: "true",
                 // STRATEGY_OIDC: "true",
                 // OIDC_NAME: "SSO",
@@ -66,11 +66,11 @@ export const getServerService = (stack: SpeckleStack, compute?: SpeckleComputePr
         domainZone: stack.hostedZone,
         protocol: ApplicationProtocol.HTTPS,
         listenerPort: 3000,
-        vpc: stack.vpc,
         taskSubnets: {
             subnetType: SubnetType.PRIVATE_WITH_EGRESS
         }
     });
+
 
     stack.bucket.grantReadWrite(serverService.taskDefinition.taskRole)
     stack.dbCluster.grantConnect(serverService.taskDefinition.taskRole, 'postgres')

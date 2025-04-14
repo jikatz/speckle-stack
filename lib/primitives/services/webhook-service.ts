@@ -39,7 +39,6 @@ export const getWebhookService = (stack: SpeckleStack, compute?: SpeckleComputeP
         cluster: stack.computeCluster,
     })
 
-
     stack.dbCluster.grantConnect(webhookService.taskDefinition.taskRole, 'postgres')
     webhookService.connections.allowFrom(stack.dbCluster, Port.tcp(5432))
     webhookService.connections.allowTo(stack.dbCluster, Port.tcp(5432))

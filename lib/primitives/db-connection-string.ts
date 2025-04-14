@@ -19,13 +19,14 @@ export const createDbConnectionString = (stack: SpeckleStack, dbCluster: Databas
         }
     });
 
+    stack.secret.grantRead(handler);
     stack.secret.grantWrite(handler);
 
     const provider = new Provider(stack, `db-connection-string-provider-${stack.namespace}`, {
         onEventHandler: handler
     });
 
-    new CustomResource(stack, `db-connection-string-${stack.namespace}`, {
+    const resource = new CustomResource(stack, `db-connection-string-${stack.namespace}`, {
         serviceToken: provider.serviceToken,
         properties: {
             SecretArn: stack.secret.secretArn,
@@ -35,4 +36,5 @@ export const createDbConnectionString = (stack: SpeckleStack, dbCluster: Databas
             DbUser: 'postgres'
         }
     });
+
 }; 

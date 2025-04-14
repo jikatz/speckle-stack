@@ -49,8 +49,8 @@ export class SpeckleStack extends cdk.Stack {
       secretCompleteArn: props.secretArn
     }) as Secret;
 
-    this.webUrl = `speckle.${props.domainName}`;
-    this.apiUrl = `speckle-api.${props.domainName}`
+    this.webUrl = `web.${props.domainName}`;
+    this.apiUrl = `api.${props.domainName}`
 
     this.bucket = new Bucket(this, `speckle-bucket-${this.namespace}`, {
       removalPolicy: cdk.RemovalPolicy.RETAIN,

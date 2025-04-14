@@ -28,6 +28,7 @@ export const getPreviewService = (stack: SpeckleStack, compute?: SpeckleComputeP
             HOST: '127.0.0.1',
             METRICS_HOST: '127.0.0.1',
             LOG_LEVEL: 'info',
+            PORT: '3001',
             REDIS_URL: `redis://${stack.cacheCluster.attrRedisEndpointAddress}:${stack.cacheCluster.attrRedisEndpointPort}`,
         },
         secrets: {
@@ -40,7 +41,6 @@ export const getPreviewService = (stack: SpeckleStack, compute?: SpeckleComputeP
         assignPublicIp: false,
         cluster: stack.computeCluster,
     })
-
 
     stack.dbCluster.grantConnect(previewService.taskDefinition.taskRole, 'postgres')
     previewService.connections.allowFrom(stack.dbCluster, Port.tcp(5432))

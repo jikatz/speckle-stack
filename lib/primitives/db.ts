@@ -22,7 +22,7 @@ export const getDb = (stack:SpeckleStack, dbProps?: SpeckleDbProps): DatabaseClu
         },
         vpc: stack.vpc,
         vpcSubnets: {
-            subnetType: SubnetType.PRIVATE_WITH_NAT
+            subnetType: SubnetType.PRIVATE_WITH_EGRESS
         }
     });
 
