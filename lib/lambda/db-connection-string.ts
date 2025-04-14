@@ -1,4 +1,4 @@
-import { SecretsManagerClient, UpdateSecretCommand } from '@aws-sdk/client-secrets-manager';
+import { SecretsManagerClient, UpdateSecretCommand, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { CloudFormationCustomResourceEvent } from 'aws-lambda';
 
 const secretsManager = new SecretsManagerClient({});
@@ -14,8 +14,13 @@ export const handler = async (event: CloudFormationCustomResourceEvent) => {
     }
 
     try {
-        // Get the password from the secret
-        const password = process.env.PASSWORD || '';
+        // Get the current secret value
+        const getSecretResponse = await secretsManager.send(new GetSecretValueCommand({
+            SecretId: SecretArn
+        }));
+
+        const secretValue = JSON.parse(getSecretResponse.SecretString || '{}');
+        const password = secretValue.password || '';
 
         // Construct the connection string
         const connectionString = `postgresql://${DbUser}:${password}@${DbHost}:${DbPort}/${DbName}`;
@@ -24,7 +29,7 @@ export const handler = async (event: CloudFormationCustomResourceEvent) => {
         await secretsManager.send(new UpdateSecretCommand({
             SecretId: SecretArn,
             SecretString: JSON.stringify({
-                ...JSON.parse(process.env.SECRET_STRING || '{}'),
+                ...secretValue,
                 'db-connection-string': connectionString
             })
         }));
